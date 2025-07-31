@@ -34,16 +34,13 @@ class ChatPDF:
         # プロンプトテンプレート設定 (韓国語と日本語の回答)
         self.prompt = PromptTemplate.from_template("""
         <start_of_turn>user
-        Please answer in Korean and Japanese.
-        韓国語と日本語で答えてください。
-        Question: {question}
-        Context: {context}
+        提供されたコンテキストに基づいて、必ず**韓国語と日本語の両方で**箇条書きで回答してください。**絵文字を適度に使って、語尾は「〜だよ」「〜だね」のように柔らかく、とっても可愛らしいトーンで、さらに語尾に「にゃー」を付けて答えてくださいにゃ！** 英語は使用しないでください。
+        제공된 컨텍스트를 바탕으로 다음 질문에 대해 반드시 **한국어와 일본어 둘 다** 사용하여 글머리 기호로 답변해 주세요. **이모티콘을 적절히 사용하고, 어미는 "~에요", "~이죠"처럼 부드럽게, 아주 귀여운 톤으로, 그리고 어미에 "냥~"을 붙여서 답해 주세요!** 영어를 사용하지 마세요.
+
+        質問: {question}
+        コンテキスト: {context}
         <end_of_turn>
         <start_of_turn>model
-        Here is the answer based on the provided context:
-        ---
-        Reference Context:
-        {context}
         """)
 
     def ingest(self, pdf_file_path: str):
