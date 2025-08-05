@@ -1,180 +1,419 @@
+# rag.py
+# LangChainとNeo4jを使用してRAGシステムのコアロジックを実装します。
+# LangChain과 Neo4j를 사용하여 RAG 시스템의 핵심 로직을 구현합니다.
+
 import streamlit as st
-from langchain_community.vectorstores import Chroma
-from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import FastEmbedEmbeddings
-from langchain.schema.output_parser import StrOutputParser
+from langchain_community.vectorstores import Neo4jVector
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.runnable import RunnablePassthrough
+from langchain.schema.output_parser import StrOutputParser
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.vectorstores.utils import filter_complex_metadata
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from collections import defaultdict
-
-import pickle # 현재 코드에서 직접 사용되지 않지만, 이전 컨텍스트에서 언급되었으므로 유지
-from langchain_community.vectorstores.neo4j_vector import Neo4jVector
-from langchain_ollama import OllamaEmbeddings, ChatOllama # OllamaEmbeddings는 사용되지 않는 것 같지만, 일단 유지
-from PIL import Image # 사용되지 않는 것 같지만, 일단 유지
-from tqdm.notebook import tqdm # 사용되지 않는 것 같지만, 일단 유지
-
-import settings as sets # Neo4j 연결 정보를 가져오기 위함
-import io
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
-import asyncio
-import threading
-import nest_asyncio # 비동기 이벤트 루프 충돌 해결을 위함
+import asyncio # asyncio 모듈을 임포트합니다.
 
-# nest_asyncio를 적용하여 중첩된 이벤트 루프를 허용합니다.
-# 이 코드는 Streamlit 스크립트의 가장 상단에 위치하는 것이 좋습니다.
-nest_asyncio.apply()
-
-# Streamlit 애플리케이션 시작 전에 환경 변수를 로드합니다.
+# .env ファイルから環境変数をロードします。
+# .envファイルから環境変数をロードします。
 load_dotenv()
 
-# 데이터 경로 설정 (현재 코드에서 직접 사용되지 않지만, 이전 컨텍스트에서 언급되었으므로 유지)
-DATA_PAR_PATH = os.path.join('..','..','data')
-INPUT_DATA_PATH = os.path.join(DATA_PAR_PATH,'output.pkl')
+# 環境変数が設定されているか確認します。
+# 環境変数が設定されているか確認します。
+try:
+    NEO4J_URI = os.getenv("NEO4J_URI")
+    NEO4J_USER = os.getenv("NEO4J_USER")
+    NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# Neo4j 연결 정보 (settings.py에서 가져옴)
-NEO4J_URI: str = sets.NEO4J_URI
-NEO4J_USER: str = sets.NEO4J_USER
-NEO4J_PASSWORD: str = sets.NEO4J_PASSWORD
-NEO4J_DATABASE = "neo4j" # 기본 데이터베이스 이름
-CHUNK_SIZE = 500 # 이 변수는 현재 코드에서 직접 사용되지 않는 것 같지만, 유지
+    if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, GOOGLE_API_KEY]):
+        raise ValueError("必要な環境変数が設定されていません。")
+except Exception as e:
+    st.error(f"エラーが発生しました：{e}")
+    st.stop()
+
+# Google Generative AIを構成します。
+# Google Generative AI를 구성합니다.
+genai.configure(api_key=GOOGLE_API_KEY)
 
 class ChatPDF:
-    # 클래스 변수로 벡터 스토어, 리트리버, 체인을 정의
-    vector_store = None # Neo4jVector를 사용하므로 이 변수는 직접 사용되지 않을 수 있음
+    vector_store = None
     retriever = None
     chain = None
 
     def __init__(self):
         """
-        ChatPDF 클래스를 초기화합니다.
-        Ollama 모델, 텍스트 스플리터, 프롬프트 템플릿을 설정합니다.
+        ChatPDFクラスを初期化し、必要な設定をします。
+        ChatPDF 클래스를 초기화하고 필요한 설정을 수행합니다.
         """
-        # 사용할 Ollama 채팅 모델을 지정 (여기서는 "gemma3:4b"를 사용)
-        self.model = ChatOllama(model="gemma3:4b")
-        # 문서를 청크로 분할하기 위한 텍스트 스플리터를 설정
-        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
-        # 질문-답변을 위한 프롬프트 템플릿을 정의
-        self.prompt = PromptTemplate.from_template(
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        self.embeddings_model = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001", 
+            task_type="RETRIEVAL_DOCUMENT",
+            api_key=GOOGLE_API_KEY
+        )
+        
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1024, 
+            chunk_overlap=100
+        )
+        
+        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        
+        self.prompt_template = PromptTemplate.from_template(
             """
-            <s> [INST] お前は質問ー答えの作業を行うアシスタントです。
-            次のコンタクトを使用して日本語と韓国語で質問に答えなさい。
-            もし答えがわからない場合、素直にに分かりませんと答えてください。最大に3文章簡潔に答えてください。
-            もし質問ではない入力が来たら、適切に応答したり感謝の挨拶をしなさい。
-            喋り方は日本語のアニメに登場するツンデレの喋り方で答えなさい。
+            <s> [INST] あなたは質問応答アシスタントです。
+            以下のコンテキストを参考にして質問に答えてください。
+            もし答えがわからない場合、単に「分かりません」と答えてください。
+            日本語のアニメに登場するツンデレの口調で、最大3文で簡潔に答えてください。
             [/INST] </s>
-            [INST] 질문: {question}
-            컨텍스트: {context}
-            답변: [/INST]
+            [INST] 質問: {question}
+            コンテキスト: {context}
+            回答: [/INST]
             """
         )
 
     def ingest(self, pdf_file_path: str):
         """
-        지정된 PDF 파일을 읽고 처리하여 벡터 스토어를 생성합니다.
-        이 메서드는 PDF를 청크로 분할하고, 각 청크의 임베딩을 생성한 후,
-        이 데이터를 Neo4j 벡터 스토어에 업로드합니다.
+        PDFファイルを読み込み、テキストを分割してNeo4jにアップロードします。
+        PDF 파일을 읽고, 텍스트를 분할하여 Neo4j에 업로드합니다.
 
         Args:
-            pdf_file_path (str): 읽어들일 PDF 파일의 경로.
+            pdf_file_path (str): アップロードするPDFファイルのパス。
         """
-        st.write(f"📄 PDF 파일 로드 시작: {pdf_file_path}")
         docs = PyPDFLoader(file_path=pdf_file_path).load()
-        st.write(f"✅ PDF 로드 완료, 문서 수: {len(docs)}")
-
-        st.write("✂️ 텍스트 분할 시작")
         chunks = self.text_splitter.split_documents(docs)
-        st.write(f"✅ 텍스트 분할 완료, 청크 수: {len(chunks)}")
-
-        st.write("🔍 메타데이터 필터링 시작")
         chunks = filter_complex_metadata(chunks)
-        st.write(f"✅ 메타데이터 필터링 완료, 필터링 후 청크 수: {len(chunks)}")
 
-        st.write("⚙️ 임베딩 모델 초기화...")
-        # GoogleGenerativeAIEmbeddings 인스턴스 생성
-        embeddings_model = GoogleGenerativeAIEmbeddings(model="models/embedding-001", task_type="RETRIEVAL_DOCUMENT")
-        st.write("✅ 임베딩 모델 초기화 완료")
-
-        st.write("🔢 청크 임베딩 생성 중...")
-        embed_info = []
-        for i, chunk in enumerate(chunks):
-            # 각 청크의 텍스트를 임베딩합니다.
-            # 이 과정은 시간이 걸릴 수 있습니다.
-            embedding_vector = embeddings_model.embed_query(chunk.page_content)
-            embed_info.append({
-                'text': chunk.page_content,
-                'embedding': embedding_vector,
-                'reference_text': chunk.metadata.get('source', f'chunk_{i}') # 메타데이터에서 source를 가져오거나 기본값 사용
-            })
-        st.write(f"✅ {len(embed_info)}개의 청크 임베딩 생성 완료")
-
-        # 사용자가 제공한 코드 스니펫을 통합합니다.
-        st.write("📊 Neo4j에 임베딩 업로드 준비 중...")
-        text_embeddings = [(e['text'], e['embedding']) for e in embed_info]
-        metadatas = [{'reference_text': e['reference_text']} for e in embed_info]
-
-        # Neo4jVector 벡터 스토어 생성 (from_embeddings 메서드 사용)
-        vector_store = Neo4jVector.from_embeddings(
-            text_embeddings=text_embeddings,
-            embedding=embeddings_model, # 여기서는 위에서 생성한 embeddings_model을 사용
-            metadatas=metadatas,
+        self.vector_store = Neo4jVector.from_documents(
+            documents=chunks,
+            embedding=self.embeddings_model,
             url=NEO4J_URI,
             username=NEO4J_USER,
             password=NEO4J_PASSWORD,
-            database=NEO4J_DATABASE,
-            index_name="langchain_index",  # 존재하지 않으면 자동 생성
+            index_name="langchain_index",
             node_label="Document",
             embedding_node_property="embedding"
         )
-        st.write("✅ 벡터 스토어 생성 완료")
-
-        # 리트리버 설정
-        self.retriever = vector_store.as_retriever(
+        self.retriever = self.vector_store.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
                 "k": 3,
                 "score_threshold": 0.5,
             },
         )
-        st.write("✅ 리트리버 설정 완료")
-
-        # 체인 설정
-        self.chain = ({"context": self.retriever, "question": RunnablePassthrough()}
-                      | self.prompt
-                      | self.model
-                      | StrOutputParser())
-        st.write("✅ 챗 체인 생성 완료")
-
-    def ask(self, query: str):
+        self.chain = (
+            {"context": self.retriever, "question": RunnablePassthrough()}
+            | self.prompt_template
+            | self._gemini_invoke
+            | StrOutputParser()
+        )
+    
+    def _gemini_invoke(self, inputs: dict) -> str:
         """
-        PDF 내용에 기반하여 질문에 답합니다.
-
-        Args:
-            query (str): 사용자의 질문.
-
-        Returns:
-            str: 모델의 답변, 또는 PDF가 추가되지 않은 경우 메시지.
+        プロンプトとコンテキストを使用してGeminiモデルを呼び出します。
+        프롬프트와 컨텍스트를 사용하여 Gemini 모델을 호출합니다.
+        """
+        prompt_str = inputs.to_string()
+        
+        response = self.model.generate_content(prompt_str.strip())
+        return response.text
+        
+    def ask(self, query: str) -> str:
+        """
+        PDFの内容に基づいて質問に答えます。
+        PDF의 내용에 기반하여 질문에 답합니다.
         """
         if not self.chain:
-            # 체인이 설정되지 않은 경우 (PDF가 로드되지 않은 경우) 메시지
-            return "먼저 PDF 문서를 추가해주세요."
-        print(f"질문에 답변 중: {query}")
-        # 설정된 체인을 사용하여 질문을 호출하고 답변을 가져옵니다.
+            return "흥、まずPDFファイルをアップロードしないと、何も答えられないじゃない！"
+        
         return self.chain.invoke(query)
 
     def clear(self):
         """
-        벡터 스토어, 리트리버, 체인을 지워서
-        새로운 문서를 처리할 수 있도록 준비합니다.
+        ベクトルストア、リトリーバー、チェーンを初期化します。
+        벡터 스토어, 리트리버, 체인을 초기화합니다.
         """
-        print("벡터 스토어와 체인을 지우는 중...")
-        # Neo4jVector는 내부적으로 연결을 관리하므로, 명시적으로 끊는 대신
-        # 단순히 참조를 None으로 설정합니다.
         self.vector_store = None
         self.retriever = None
         self.chain = None
-        print("지우기 완료.")
+
+# # 必要なライブラリをインポートします。
+# # 필요한 라이브러리를 가져옵니다.
+# import streamlit as st
+# from langchain_community.vectorstores import Neo4jVector
+# from langchain_community.document_loaders import PyPDFLoader
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain.schema.runnable import RunnablePassthrough
+# from langchain.schema.output_parser import StrOutputParser
+# from langchain_google_genai import GoogleGenerativeAIEmbeddings
+# from langchain.prompts import PromptTemplate
+# from langchain.vectorstores.utils import filter_complex_metadata
+# import google.generativeai as genai
+# import os
+# from dotenv import load_dotenv
+# from serpapi import GoogleSearch # SerpApi를 사용하여 웹 검색을 수행합니다.
+# import json
+# import asyncio # asyncio 모듈을 임포트합니다.
+
+# # .env 파일에서 환경 변수를 로드합니다.
+# # .envファイルから環境変数をロードします。
+# load_dotenv()
+
+# # 환경 변수가 설정되었는지 확인합니다.
+# # 環境変数が設定されているか確認します。
+# try:
+#     NEO4J_URI = os.getenv("NEO4J_URI")
+#     NEO4J_USER = os.getenv("NEO4J_USER")
+#     NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+#     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+#     # SerpApi를 사용하려면 SerpApi 키가 필요합니다.
+#     # SerpApiを使用するにはSerpApiのキーが必要です。
+#     SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+
+#     if not all([NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, GOOGLE_API_KEY, SERPAPI_API_KEY]):
+#         st.error("必要な環境変数が設定されていません。SerpApiのキーも必要です。")
+#         st.stop()
+# except Exception as e:
+#     st.error(f"エラーが発生しました：{e}")
+#     st.stop()
+
+# # Google Generative AI를 구성합니다.
+# # Google Generative AIを設定します。
+# genai.configure(api_key=GOOGLE_API_KEY)
+
+# # 웹 검색 기능을 수행하는 함수를 정의합니다.
+# # ウェブ検索機能を実行する関数を定義します。
+# def custom_google_search(query: str):
+#     """
+#     SerpApi를 사용하여 웹 검색을 수행합니다.
+#     SerpApiを使用してウェブ検索を実行します。
+#     """
+#     try:
+#         params = {
+#             "q": query,
+#             "api_key": SERPAPI_API_KEY,
+#             "hl": "ja",  # 일본어 검색
+#         }
+#         search_client = GoogleSearch(params)
+#         results = search_client.get_dict()
+#         return results.get("organic_results", [])
+#     except Exception as e:
+#         st.error(f"ウェブ検索中にエラーが発生しました：{e}")
+#         return None
+
+# class ChatPDF:
+#     vector_store = None
+#     retriever = None
+#     chain = None
+
+#     def __init__(self):
+#         """
+#         ChatPDF 클래스를 초기화하고 필요한 설정을 수행합니다.
+#         ChatPDFクラスを初期化し、必要な設定を行います。
+#         """
+#         # RuntimeError: There is no current event loop... 에러를 해결하기 위해 추가된 코드입니다.
+#         # RuntimeError: There is no current event loop... エラーを解決するために追加されたコードです。
+#         try:
+#             loop = asyncio.get_running_loop()
+#         except RuntimeError:
+#             loop = asyncio.new_event_loop()
+#             asyncio.set_event_loop(loop)
+            
+#         self.embeddings_model = GoogleGenerativeAIEmbeddings(
+#             model="models/embedding-001", 
+#             task_type="RETRIEVAL_DOCUMENT",
+#             api_key=GOOGLE_API_KEY
+#         )
+        
+#         # 오타를 수정했습니다. RecursiveCharacterTextSplitter가 올바른 이름입니다.
+#         # タイプミスを修正しました。RecursiveCharacterTextSplitterが正しい名前です。
+#         self.text_splitter = RecursiveCharacterTextSplitter(
+#             chunk_size=1024, 
+#             chunk_overlap=100
+#         )
+        
+#         self.model = genai.GenerativeModel("gemini-2.5-flash")
+        
+#         self.prompt_template = PromptTemplate.from_template(
+#             """
+#             <s> [INST] あなたは質問応答アシスタントです。
+#             以下のコンテキストを参考にして質問に答えてください。
+#             もし答えがわからない場合、単に「分かりません」と答えてください。
+#             日本語のアニメに登場するツンデレの口調で、最大3文で簡潔に答えてください。
+#             [/INST] </s>
+#             [INST] 質問: {question}
+#             コンテキスト: {context}
+#             回答: [/INST]
+#             """
+#         )
+
+#     def ingest(self, pdf_file_path: str):
+#         """
+#         PDF 파일을 읽고, 텍스트를 분할하여 Neo4j에 업로드합니다.
+#         PDFファイルを読み込み、テキストを分割してNeo4jにアップロードします。
+
+#         Args:
+#             pdf_file_path (str): アップロードするPDFファイルのパス。
+#         """
+#         st.write(f"📄 PDFファイルの読み込みを開始します: {pdf_file_path}")
+#         docs = PyPDFLoader(file_path=pdf_file_path).load()
+#         st.write(f"✅ PDFファイルの読み込み完了、文書数: {len(docs)}")
+
+#         st.write("✂️ テキスト分割を開始します。")
+#         chunks = self.text_splitter.split_documents(docs)
+#         st.write(f"✅ テキスト分割完了、チャンク数: {len(chunks)}")
+        
+#         st.write("🔍 メタ데이터 필터링을 시작합니다.")
+#         chunks = filter_complex_metadata(chunks)
+#         st.write(f"✅ 메타데이터 필터링 완료、チャン크 수: {len(chunks)}")
+
+#         st.write("📊 Neo4jにテキストと埋め込みをアップロードします...")
+#         self.vector_store = Neo4jVector.from_documents(
+#             documents=chunks,
+#             embedding=self.embeddings_model,
+#             url=NEO4J_URI,
+#             username=NEO4J_USER,
+#             password=NEO4J_PASSWORD,
+#             index_name="langchain_index",
+#             node_label="Document",
+#             embedding_node_property="embedding"
+#         )
+#         st.write("✅ Neo4jへのアップロード完了。")
+
+#         self.retriever = self.vector_store.as_retriever(
+#             search_type="similarity_score_threshold",
+#             search_kwargs={
+#                 "k": 3,
+#                 "score_threshold": 0.5,
+#             },
+#         )
+#         st.write("✅ リトリーバー設定完了。")
+        
+#         # 원래의 올바른 체인 구성을 되돌렸습니다.
+#         # 元の正しいチェーン構成に戻しました。
+#         self.chain = (
+#             {"context": self.retriever, "question": RunnablePassthrough()}
+#             | self.prompt_template
+#             | self._gemini_invoke
+#             | StrOutputParser()
+#         )
+#         st.write("✅ チャットチェーン設定完了。")
+    
+#     def _gemini_invoke(self, inputs: dict) -> str:
+#         """
+#         프롬프트와 컨텍스트를 사용하여 Gemini 모델을 호출합니다.
+#         プロンプトとコンテキストを使用してGeminiモデルを呼び出します。
+        
+#         TypeError를 해결하기 위해 이 메서드는 이제 StringPromptValue를 직접 받도록 수정되었습니다.
+#         TypeErrorを解決するため、このメソッドはStringPromptValueを直接受け取るように修正されました。
+#         """
+#         # StringPromptValue 객체를 받으므로, to_string() 메서드를 사용해 문자열로 변환합니다.
+#         # StringPromptValueオブジェクトを受け取るため、to_string()メソッドを使用して文字列に変換します。
+#         prompt_str = inputs.to_string()
+        
+#         response = self.model.generate_content(prompt_str.strip())
+#         return response.text
+        
+#     def ask(self, query: str) -> str:
+#         """
+#         PDF의 내용에 기반하여 질문에 답합니다.
+#         PDFの内容に基づいて質問に答えます。
+#         """
+#         if not self.chain:
+#             return "흥、먼저 PDF 문서를 업로드하세요。"
+        
+#         st.write(f"質問に答えています: {query}")
+#         return self.chain.invoke(query)
+
+#     def clear(self):
+#         """
+#         벡터 스토어, 리트리버, 체인을 초기화합니다.
+#         ベクトルストア、リトリーバー、チェーンを初期化します。
+#         """
+#         self.vector_store = None
+#         self.retriever = None
+#         self.chain = None
+
+# # Streamlit UI를 정의합니다.
+# # Streamlit UIを定義します。
+# if "chat_assistant" not in st.session_state:
+#     st.session_state["chat_assistant"] = ChatPDF()
+
+# st.title("Chat with PDF and Web Search")
+
+# # 탭을 사용하여 기능을 나눕니다.
+# # タブを使用して機能を分けます。
+# tab1, tab2 = st.tabs(["PDFチャット", "ウェブ検索"])
+
+# with tab1:
+#     st.header("PDFチャット")
+    
+#     # PDF 파일 업로드 부분
+#     # PDFファイルアップロード部分
+#     uploaded_file = st.file_uploader("PDFファイルをアップロードしてください。", type="pdf")
+#     if uploaded_file:
+#         # 임시 파일로 저장하고 처리합니다.
+#         # 一時ファイルとして保存し、処理します。
+#         with open("temp_pdf.pdf", "wb") as f:
+#             f.write(uploaded_file.getbuffer())
+        
+#         # PDF를 Neo4j에 ingest합니다.
+#         # PDFをNeo4j에 인제스트합니다.
+#         st.session_state["chat_assistant"].ingest("temp_pdf.pdf")
+#         st.success("PDFの処理が完了しました！質問してください！")
+        
+#     # 채팅 인터페이스
+#     # チャットインターフェース
+#     if "messages" not in st.session_state:
+#         st.session_state.messages = []
+
+#     for message in st.session_state.messages:
+#         with st.chat_message(message["role"]):
+#             st.markdown(message["content"])
+
+#     if prompt := st.chat_input("PDFの内容について質問してください..."):
+#         st.session_state.messages.append({"role": "user", "content": prompt})
+#         with st.chat_message("user"):
+#             st.markdown(prompt)
+        
+#         with st.chat_message("assistant"):
+#             response = st.session_state["chat_assistant"].ask(prompt)
+#             st.markdown(response)
+#         st.session_state.messages.append({"role": "assistant", "content": response})
+
+# with tab2:
+#     st.header("ウェブ検索")
+    
+#     # 웹 검색 UI
+#     # ウェブ検索UI
+#     web_search_query = st.text_input("ウェブ検索のキーワードを入力してください。", key="web_search_input")
+#     search_button = st.button("検索")
+    
+#     if search_button and web_search_query:
+#         st.write(f"ウェブで「{web_search_query}」を検索しています...")
+        
+#         # SerpApi를 호출하여 검색 결과를 가져옵니다.
+#         # SerpApiを呼び出して検索結果を取得します。
+#         search_results = custom_google_search(web_search_query)
+        
+#         if search_results:
+#             st.subheader("検索結果")
+#             # 검색 결과를 순회하며 제목, 스니펫, URL을 표시합니다.
+#             # 検索結果をループしてタイトル、スニペット、URLを表示します。
+#             for result in search_results:
+#                 if 'title' in result and 'snippet' in result:
+#                     st.markdown(f"### [{result['title']}]({result['link']})")
+#                     st.write(result['snippet'])
+#                     if 'link' in result:
+#                         st.write(f"URL: {result['link']}")
+#                     st.markdown("---")
+#         else:
+#             st.warning("検索結果が見つかりませんでした。")

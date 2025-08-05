@@ -1,74 +1,74 @@
-# # gemini
+# gemini
 
-# # from langchain_community.vectorstores import Chroma
-# # from langchain_community.embeddings import FastEmbedEmbeddings
-# # from langchain.schema.output_parser import StrOutputParser
-# # from langchain_community.document_loaders import PyPDFLoader
-# # from langchain.text_splitter import RecursiveCharacterTextSplitter
-# # from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
-# # from langchain.vectorstores.utils import filter_complex_metadata
-# # import google.generativeai as genai
-# # from google.generativeai import GenerativeModel
-# # import os
-# # from dotenv import load_dotenv
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import FastEmbedEmbeddings
+from langchain.schema.output_parser import StrOutputParser
+from langchain_community.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.vectorstores.utils import filter_complex_metadata
+import google.generativeai as genai
+from google.generativeai import GenerativeModel
+import os
+from dotenv import load_dotenv
 
-# # load_dotenv()
-# # class ChatPDF:
-# #     # api_key = os.getenv("GEMINI_API_KEY")
+load_dotenv()
+class ChatPDF:
+    # api_key = os.getenv("GEMINI_API_KEY")
     
-# #     vector_store = None
-# #     retriever = None
-# #     chain = None
+    vector_store = None
+    retriever = None
+    chain = None
 
-# #     def __init__(self):
-# #         # API 키 설정
-# #         genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-# #         self.model = GenerativeModel("gemini-2.5-flash")
+    def __init__(self):
+        # API 키 설정
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model = GenerativeModel("gemini-2.5-flash")
 
-# #         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
 
-# #     def ingest(self, pdf_file_path: str):
-# #         docs = PyPDFLoader(file_path=pdf_file_path).load()
-# #         chunks = self.text_splitter.split_documents(docs)
-# #         chunks = filter_complex_metadata(chunks)
+    def ingest(self, pdf_file_path: str):
+        docs = PyPDFLoader(file_path=pdf_file_path).load()
+        chunks = self.text_splitter.split_documents(docs)
+        chunks = filter_complex_metadata(chunks)
 
-# #         self.vector_store = Chroma.from_documents(documents=chunks, embedding=FastEmbedEmbeddings())
-# #         self.retriever = self.vector_store.as_retriever(
-# #             search_type="similarity_score_threshold",
-# #             search_kwargs={"k": 3, "score_threshold": 0.5},
-# #         )
+        self.vector_store = Chroma.from_documents(documents=chunks, embedding=FastEmbedEmbeddings())
+        self.retriever = self.vector_store.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"k": 3, "score_threshold": 0.5},
+        )
 
-# #         def gemini_invoke(inputs: dict) -> str:
-# #             question = inputs["question"]
-# #             context = inputs["context"]
-# #             prompt_text = f"""
-# #                             <s> [INST] あなたは質問応答アシスタントです。
-# #                             日本語と韓国語で答えてください。
-# #                             以下のコンテキストを参考にして質問に答えてください。
-# #                             コンテキストが不十分な場合でも、一般的な知識に基づいて最大3文以内で簡潔に答えてください。
-# #                             質問ではない入力には適切に応答するか、感謝の挨拶をしてください。 [/INST] </s>
-# #                             [INST] 질문: {question}
-# #                             컨텍스트: {context}
-# #                             답변: [/INST]
-# #                             """
-# #             response = self.model.generate_content(prompt_text.strip())
-# #             return response.text
+        def gemini_invoke(inputs: dict) -> str:
+            question = inputs["question"]
+            context = inputs["context"]
+            prompt_text = f"""
+                            <s> [INST] あなたは質問応答アシスタントです。
+                            日本語と韓国語で答えてください。
+                            以下のコンテキストを参考にして質問に答えてください。
+                            コンテキストが不十分な場合でも、一般的な知識に基づいて最大3文以内で簡潔に答えてください。
+                            質問ではない入力には適切に応答するか、感謝の挨拶をしてください。 [/INST] </s>
+                            [INST] 질문: {question}
+                            컨텍스트: {context}
+                            답변: [/INST]
+                            """
+            response = self.model.generate_content(prompt_text.strip())
+            return response.text
 
-# #         self.chain = (
-# #             {"context": self.retriever, "question": RunnablePassthrough()}
-# #             | RunnableLambda(gemini_invoke)
-# #             | StrOutputParser()
-# #         )
+        self.chain = (
+            {"context": self.retriever, "question": RunnablePassthrough()}
+            | RunnableLambda(gemini_invoke)
+            | StrOutputParser()
+        )
 
-# #     def ask(self, query: str) -> str:
-# #         if not self.chain:
-# #             return "먼저 PDF를 업로드해주세요."
-# #         return self.chain.invoke(query)
+    def ask(self, query: str) -> str:
+        if not self.chain:
+            return "먼저 PDF를 업로드해주세요."
+        return self.chain.invoke(query)
 
-# #     def clear(self):
-# #         self.vector_store = None
-# #         self.retriever = None
-# #         self.chain = None
+    def clear(self):
+        self.vector_store = None
+        self.retriever = None
+        self.chain = None
 
 # # gemma3
 # # import streamlit as st
