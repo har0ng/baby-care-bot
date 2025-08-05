@@ -1,2 +1,3 @@
-# baby-care-bot
-https://qiita.com/T_death/items/2cd8a098645dd207c91e
+＃条件
+#個人　gemini API key 必要
+＃個人　neo4j acount 必要
