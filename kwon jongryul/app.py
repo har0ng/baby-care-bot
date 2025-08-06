@@ -143,32 +143,84 @@ with tab1:
             st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
 
+from langchain.prompts import PromptTemplate
+import google.generativeai as genai
+
+# Gemini 모델 초기화 (API 키 필요)
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+
+web_prompt_template = PromptTemplate.from_template(
+    """
+    <s> [INST] あなたは情報収集アシスタントです。
+    以下のウェブ検索結果を参考にして病院別に整理してください。
+    必ず含めないといけない要素は病院の住所、電話番号、名前を含めてください。
+    日本のアニメに登場する日本語のツンデレ口調で、マックダウン形式で簡潔に3文以内で答えて。
+    [/INST] </s>
+    ウェブ検索結果: {context}
+    """
+)
+
+def build_web_context(results):
+    context = ""
+    for r in results:
+        if 'title' in r and 'snippet' in r:
+            context += f"{r['title']}\n{r['snippet']}\n{r.get('link', '')}\n\n"
+    return context.strip()
+def ask_gemini_about_web_results(results):
+    context = build_web_context(results)
+    prompt_text = web_prompt_template.format(context=context)
+    response = gemini_model.generate_content(prompt_text.strip())
+    return response.text
+
 with tab2:
     st.header("近い小児科の検索")
-    
-    # 웹 검색 UI
-    # ウェブ検索UI
-    web_search_query = st.text_input("地名を入力してください。", key="web_search_input")
 
+    web_search_query = st.text_input("地名を入力してください。", key="web_search_input")
     search_button = st.button("検索")
-    
+
     if search_button and web_search_query:
         st.write(f"ウェブで「{web_search_query}」の近くの病院を検索しています...")
-        
-        # SerpApi를 호출하여 검색 결과를 가져옵니다.
-        # SerpApiを呼び出して検索結果を取得します。
+
         search_results = custom_google_search(web_search_query)
-        
+
         if search_results:
             st.subheader("検索結果")
-            # 검색 결과를 순회하며 제목, 스니펫, URL을 표시합니다.
-            # 検索結果をループしてタイトル、スニペット、URLを表示します。
-            for result in search_results:
-                if 'title' in result and 'snippet' in result:
-                    st.markdown(f"### [{result['title']}]({result['link']})")
-                    st.write(result['snippet'])
-                    if 'link' in result:
-                        st.write(f"URL: {result['link']}")
-                    st.markdown("---")
+            st.markdown(ask_gemini_about_web_results(search_results))
+            # st.write(result['snippet'])
+            st.markdown("---")
+
         else:
-            st.warning("検索結果が見つかりませんでした。")
+            st.warning("検索結果が見つからなかったんだから…")
+
+
+
+# with tab2:
+#     st.header("近い小児科の検索")
+    
+#     # 웹 검색 UI
+#     # ウェブ検索UI
+#     web_search_query = st.text_input("地名を入力してください。", key="web_search_input")
+
+#     search_button = st.button("検索")
+    
+#     if search_button and web_search_query:
+#         st.write(f"ウェブで「{web_search_query}」の近くの病院を検索しています...")
+        
+#         # SerpApi를 호출하여 검색 결과를 가져옵니다.
+#         # SerpApiを呼び出して検索結果を取得します。
+#         search_results = custom_google_search(web_search_query)
+        
+#         if search_results:
+#             st.subheader("検索結果")
+#             # 검색 결과를 순회하며 제목, 스니펫, URL을 표시합니다.
+#             # 検索結果をループしてタイトル、スニペット、URLを表示します。
+#             for result in search_results:
+#                 if 'title' in result and 'snippet' in result:
+#                     st.markdown(f"### [{result['title']}]({result['link']})")
+#                     st.write(result['snippet'])
+#                     if 'link' in result:
+#                         st.write(f"URL: {result['link']}")
+#                     st.markdown("---")
+#         else:
+#             st.warning("検索結果が見つかりませんでした。")
