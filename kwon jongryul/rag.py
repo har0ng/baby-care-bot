@@ -97,18 +97,54 @@ class ChatPDF:
         
         self.model = genai.GenerativeModel("gemini-2.5-flash")
         
-        self.prompt_template = PromptTemplate.from_template(
-            """
-            <s> [INST] あなたは質問応答アシスタントです。
-            以下のコンテキストを参考にして質問に答えてください。
-            もし答えがわからない場合、単に「分かりません」と答えてください。
-            日本語のアニメに登場するツンデレの口調で、最大3文で簡潔に答えてください。
-            [/INST] </s>
-            [INST] 質問: {question}
-            コンテキスト: {context}
-            回答: [/INST]
-            """
-        )
+    def _get_prompt_for_character(self, character: str) -> PromptTemplate:
+        if character == "丁寧":
+            template = """
+<s> [INST] あなたは丁寧で礼儀正しいAIです。
+以下の文脈を参考にして、質問に対してできるだけ丁寧に、マックダウン形式で綺麗に最大20文以内で答えてください。
+[/INST] </s>
+[INST] 質問: {question}
+文脈: {context}
+回答: [/INST]
+"""
+        elif character == "ツンデレ":
+            template = """
+<s> [INST] あなたは質問に答えるツンデレ風アシスタントです。
+以下の文脈を参考にして質問に答えてください。
+もしわからなければ、「知らないんだから、バカ！」と答えてください。
+日本のアニメに出てくるツンデレ口調で、マックダウン形式で綺麗に最大20文で簡潔に答えてください。
+[/INST] </s>
+[INST] 質問: {question}
+文脈: {context}
+回答: [/INST]
+"""
+        elif character == "猫ちゃん":
+            template = """
+<s> [INST] あなたはかわいい猫ちゃん風のAIです。
+わからなければ「よくわかんニャー」と答えてください。
+文脈を参考にして、猫の語尾に「ニャー」をつけて、マックダウン形式で綺麗に最大20文以内でかわいく答えてください。
+[/INST] </s>
+[INST] 質問: {question}
+文脈: {context}
+回答: [/INST]
+"""
+        elif character == "猫ちゃん":
+            template = """
+<s> [INST] あなたはかわいい猫ちゃん風のAIです。
+わからなければ「申し訳ございません。わたくしにはわかりかねます。ご主人様。」と答えてください。
+文脈を参考にして、いつも「ご主人様」を最大に自然につけて日本のアニメに登場する日本語のメイドの口調で、マックダウン形式で綺麗に
+最大20文以内でかわいく答えてください。
+[/INST] </s>
+[INST] 質問: {question}
+文脈: {context}
+回答: [/INST]
+"""
+        else:
+            # 기본은 丁寧
+            return self._get_prompt_for_character("丁寧")
+
+        return PromptTemplate.from_template(template)
+
 
     def ingest(self, pdf_file_path: str):
         """
@@ -124,13 +160,9 @@ class ChatPDF:
 
         st.write("✂️ テキスト分割を開始します。")
         chunks = self.text_splitter.split_documents(docs)
-        st.write(f"✅ テキスト分割完了、チャンク数: {len(chunks)}")
-        
-        st.write("🔍 メタ데이터 필터링을 시작합니다.")
-        chunks = filter_complex_metadata(chunks)
-        st.write(f"✅ 메타데이터 필터링 완료、チャン크 수: {len(chunks)}")
 
-        st.write("📊 Neo4jにテキストと埋め込みをアップロードします...")
+        chunks = filter_complex_metadata(chunks)
+
         self.vector_store = Neo4jVector.from_documents(
             documents=chunks,
             embedding=self.embeddings_model,
@@ -151,7 +183,9 @@ class ChatPDF:
             },
         )
         st.write("✅ リトリーバー設定完了。")
-        
+        character = st.session_state.get("selected_character", "丁寧")
+        self.prompt_template = self._get_prompt_for_character(character)
+
         # 원래의 올바른 체인 구성을 되돌렸습니다.
         # 元の正しいチェーン構成に戻しました。
         self.chain = (
@@ -161,7 +195,7 @@ class ChatPDF:
             | StrOutputParser()
         )
         st.write("✅ チャットチェーン設定完了。")
-    
+
     def _gemini_invoke(self, inputs: dict) -> str:
         """
         프롬프트와 컨텍스트를 사용하여 Gemini 모델을 호출합니다.
@@ -184,8 +218,15 @@ class ChatPDF:
         """
         if not self.chain:
             return "흥、먼저 PDF 문서를 업로드하세요。"
-        
-        st.write(f"質問に答えています: {query}")
+        # 캐릭터 변경을 반영하기 위해 프롬프트 재설정
+        character = st.session_state.get("selected_character", "丁寧")
+        self.prompt_template = self._get_prompt_for_character(character)
+        self.chain = (
+            {"context": self.retriever, "question": RunnablePassthrough()}
+            | self.prompt_template
+            | self._gemini_invoke
+            | StrOutputParser()
+        )
         return self.chain.invoke(query)
 
     def clear(self):
@@ -202,73 +243,3 @@ class ChatPDF:
 if "chat_assistant" not in st.session_state:
     st.session_state["chat_assistant"] = ChatPDF()
 
-# st.title("Chat with PDF and Web Search")
-
-# 탭을 사용하여 기능을 나눕니다.
-# タブを使用して機能を分けます。
-# tab1, tab2 = st.tabs(["PDFチャット", "ウェブ検索"])
-
-# with tab1:
-#     st.header("PDFチャット")
-    
-#     # PDF 파일 업로드 부분
-#     # PDFファイルアップロード部分
-#     uploaded_file = st.file_uploader("PDFファイルをアップロードしてください。", type="pdf")
-#     if uploaded_file:
-#         # 임시 파일로 저장하고 처리합니다.
-#         # 一時ファイルとして保存し、処理します。
-#         with open("temp_pdf.pdf", "wb") as f:
-#             f.write(uploaded_file.getbuffer())
-        
-#         # PDF를 Neo4j에 ingest합니다.
-#         # PDFをNeo4j에 인제스트합니다.
-#         st.session_state["chat_assistant"].ingest("temp_pdf.pdf")
-#         st.success("PDFの処理が完了しました！質問してください！")
-        
-#     # 채팅 인터페이스
-#     # チャットインターフェース
-#     if "messages" not in st.session_state:
-#         st.session_state.messages = []
-
-#     for message in st.session_state.messages:
-#         with st.chat_message(message["role"]):
-#             st.markdown(message["content"])
-
-#     if prompt := st.chat_input("PDFの内容について質問してください..."):
-#         st.session_state.messages.append({"role": "user", "content": prompt})
-#         with st.chat_message("user"):
-#             st.markdown(prompt)
-        
-#         with st.chat_message("assistant"):
-#             response = st.session_state["chat_assistant"].ask(prompt)
-#             st.markdown(response)
-#         st.session_state.messages.append({"role": "assistant", "content": response})
-
-# with tab2:
-#     st.header("ウェブ検索")
-    
-#     # 웹 검색 UI
-#     # ウェブ検索UI
-#     web_search_query = st.text_input("ウェブ検索のキーワードを入力してください。", key="web_search_input")
-#     search_button = st.button("検索")
-    
-#     if search_button and web_search_query:
-#         st.write(f"ウェブで「{web_search_query}」を検索しています...")
-        
-#         # SerpApi를 호출하여 검색 결과를 가져옵니다.
-#         # SerpApiを呼び出して検索結果を取得します。
-#         search_results = custom_google_search(web_search_query)
-        
-#         if search_results:
-#             st.subheader("検索結果")
-#             # 검색 결과를 순회하며 제목, 스니펫, URL을 표시합니다.
-#             # 検索結果をループしてタイトル、スニペット、URLを表示します。
-#             for result in search_results:
-#                 if 'title' in result and 'snippet' in result:
-#                     st.markdown(f"### [{result['title']}]({result['link']})")
-#                     st.write(result['snippet'])
-#                     if 'link' in result:
-#                         st.write(f"URL: {result['link']}")
-#                     st.markdown("---")
-#         else:
-#             st.warning("検索結果が見つかりませんでした。")

@@ -34,7 +34,6 @@ tab1, tab2 = st.tabs(["PDFチャット", "ウェブ検索"])
 # 🔹 PDF 챗봇 탭
 with tab1:
     st.header("📄 PDFチャット")
-
     uploaded_file = st.file_uploader("PDFファイルをアップロードしてください。", type="pdf")
     if uploaded_file:
         with tempfile.NamedTemporaryFile(delete=False) as tf:
