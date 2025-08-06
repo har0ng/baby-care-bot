@@ -135,3 +135,4 @@ zipp==3.23.0
 zstandard==0.23.0
 langchain_google_genai
 nest_asyncio
+neo4j
