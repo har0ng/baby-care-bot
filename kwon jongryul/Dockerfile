@@ -1,17 +1,17 @@
-# Python 3.9을 기반으로 한 가벼운 이미지 사용
+# Python 3.11 슬림 버전 사용
 FROM python:3.11-slim
 
 # 작업 디렉토리 설정
 WORKDIR /app
 
-# 로컬 파일을 컨테이너로 복사
+# 로컬 파일 전체 복사
 COPY . .
 
-# 라이브러리 설치 (파일이 있다면)
+# 의존성 설치 (requirements.txt 파일이 있어야 함)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# .env 파일이 필요한 경우, ENV로 환경변수 지정 가능
-# 예: ENV OPENAI_API_KEY=your-api-key
+# 포트 노출 (Streamlit 기본 포트)
+EXPOSE 8501
 
-# 컨테이너가 실행될 때 실행할 명령어
-CMD ["python", "app.py"]
+# Streamlit 앱 실행 (환경 변수 필요하면 --env-file 옵션으로)
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
