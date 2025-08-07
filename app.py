@@ -158,20 +158,19 @@ with tab2:
                     char = "images/cat.gif"
                 elif st.session_state["selected_character"] == "メイド":
                     char = "images/maid.gif"
-                st.image(char, caption="検索中…", width=300)
+                with open(char, "rb") as f:
+                    data = f.read()
+                    b64 = base64.b64encode(data).decode("utf-8")
 
-                # f = open(char, "rb")
-                # b64 = base64.b64encode(f).decode("utf-8")
-
-                # st.markdown(
-                #     f"""
-                #     <img src="data:image/gif;base64,{b64}" width="400">
-                #     """,
-                #     unsafe_allow_html=True
-                # )
+                st.markdown(
+                    f"""
+                    <img src="data:image/gif;base64,{b64}" width="400">
+                    """,
+                    unsafe_allow_html=True
+                )
 
         search_results = custom_google_search(web_search_query)
-
+        st.session_state["loading"] = False
         if search_results:
             st.subheader("検索結果")
             st.html(ask_gemini_about_web_results(search_results))
