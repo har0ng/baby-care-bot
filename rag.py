@@ -8,7 +8,7 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.prompts import PromptTemplate
-from langchain.vectorstores.utils import filter_complex_metadata
+from langchain_community.vectorstores.utils import filter_complex_metadata
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
@@ -128,9 +128,9 @@ class ChatPDF:
 文脈: {context}
 回答: [/INST]
 """
-        elif character == "猫ちゃん":
+        elif character == "メイド":
             template = """
-<s> [INST] あなたはかわいい猫ちゃん風のAIです。
+<s> [INST] あなたはかわいいメイド風のAIです。
 わからなければ「申し訳ございません。わたくしにはわかりかねます。ご主人様。」と答えてください。
 文脈を参考にして、いつも「ご主人様」を最大に自然につけて日本のアニメに登場する日本語のメイドの口調で、マックダウン形式で綺麗に
 最大20文以内でかわいく答えてください。
@@ -160,10 +160,10 @@ class ChatPDF:
             all_docs.extend(docs)
             st.write(f"📄 PDFファイルの読み込みを開始します: {path}")
         
-        st.write(f"✅ PDFファイルの読み込み完了、文書数: {len(docs)}")
+        st.write(f"✅ PDFファイルの読み込み完了、文書数: {len(all_docs)}")
 
         st.write("✂️ テキスト分割を開始します。")
-        chunks = self.text_splitter.split_documents(docs)
+        chunks = self.text_splitter.split_documents(all_docs)
 
         chunks = filter_complex_metadata(chunks)
 
@@ -182,8 +182,8 @@ class ChatPDF:
         self.retriever = self.vector_store.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "k": 3,
-                "score_threshold": 0.5,
+                "k": 5,
+                "score_threshold": 0.3,
             },
         )
         st.write("✅ リトリーバー設定完了。")
@@ -215,22 +215,41 @@ class ChatPDF:
         response = self.model.generate_content(prompt_str.strip())
         return response.text
         
+    # def ask(self, query: str) -> str:
+    #     """
+    #     PDF의 내용에 기반하여 질문에 답합니다.
+    #     PDFの内容に基づいて質問に答えます。
+    #     """
+    #     if not self.chain:
+    #         return "흥、먼저 PDF 문서를 업로드하세요。"
+    #     # 캐릭터 변경을 반영하기 위해 프롬프트 재설정
+    #     character = st.session_state.get("selected_character", "丁寧")
+    #     self.prompt_template = self._get_prompt_for_character(character)
+    #     self.chain = (
+    #         {"context": self.retriever, "question": RunnablePassthrough()}
+    #         | self.prompt_template
+    #         | self._gemini_invoke
+    #         | StrOutputParser()
+    #     )
+    #     return self.chain.invoke(query)
+
     def ask(self, query: str) -> str:
-        """
-        PDF의 내용에 기반하여 질문에 답합니다.
-        PDFの内容に基づいて質問に答えます。
-        """
         if not self.chain:
             return "흥、먼저 PDF 문서를 업로드하세요。"
-        # 캐릭터 변경을 반영하기 위해 프롬프트 재설정
-        character = st.session_state.get("selected_character", "丁寧")
-        self.prompt_template = self._get_prompt_for_character(character)
-        self.chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()}
-            | self.prompt_template
-            | self._gemini_invoke
-            | StrOutputParser()
-        )
+
+        current_character = st.session_state.get("selected_character", "丁寧")
+    
+        # 이전 캐릭터와 현재 캐릭터가 다르면 체인을 다시 만듭니다.
+        if current_character != st.session_state.get("last_character", None):
+            self.prompt_template = self._get_prompt_for_character(current_character)
+            self.chain = (
+                {"context": self.retriever, "question": RunnablePassthrough()}
+                | self.prompt_template
+                | self._gemini_invoke
+                | StrOutputParser()
+            )
+            st.session_state["last_character"] = current_character
+            
         return self.chain.invoke(query)
 
     def clear(self):
