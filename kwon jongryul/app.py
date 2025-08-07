@@ -69,18 +69,28 @@ with tab1:
     
     # PDF 파일 업로드 부분
     # PDFファイルアップロード部分
-    uploaded_file = st.file_uploader("PDFファイルをアップロードしてください。", type="pdf")
-    if uploaded_file:
+    uploaded_files = st.file_uploader(
+    "PDFファイルをアップロードしてください。", 
+    type="pdf",  
+    accept_multiple_files=True 
+    )
+
+
+    if uploaded_files:
+        file_paths = []#　配列追加。
         # 임시 파일로 저장하고 처리합니다.
         # 一時ファイルとして保存し、処理します。
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            tf.write(uploaded_file.getbuffer())
-            file_path = tf.name
-
+        for uploaded_file in uploaded_files:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tf:
+                tf.write(uploaded_file.getbuffer())
+                file_paths.append(tf.name)
         # PDF를 Neo4j에 ingest합니다.
         # PDFをNeo4jにインジェストします。
-        st.session_state["chat_assistant"].ingest(file_path)
-        os.remove(file_path)
+        st.session_state["chat_assistant"].ingest(file_paths)
+
+
+        for path in file_paths:
+            os.remove(path)
         st.success("PDFの処理が完了しました！質問してください！")
         
     # 채팅 인터페이스
@@ -110,7 +120,7 @@ web_prompt_template = PromptTemplate.from_template(
     """
     <s> [INST] あなたは情報収集アシスタントです。
     以下のウェブ検索結果を参考にして病院別に整理してください。
-    必ず含めないといけない要素は病院の住所、電話番号、名前、科、簡単な情報を含めてください。
+    必ず含めないといけない要素は病院の住所、電話番号、名前、科、簡単な情報、出来ればホームページリンクや建物の画像をを含めてください。
     {character}、html形式にインラインcssで喋り方のコンセプトに合わせて作って簡潔に3文以内で答えて。
     [/INST] </s>
     ウェブ検索結果: {context}

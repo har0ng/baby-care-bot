@@ -146,7 +146,8 @@ class ChatPDF:
         return PromptTemplate.from_template(template)
 
 
-    def ingest(self, pdf_file_path: str):
+    def ingest(self, pdf_file_paths: list[str]):
+        all_docs = []
         """
         PDF 파일을 읽고, 텍스트를 분할하여 Neo4j에 업로드합니다.
         PDFファイルを読み込み、テキストを分割してNeo4jにアップロードします。
@@ -154,8 +155,11 @@ class ChatPDF:
         Args:
             pdf_file_path (str): アップロードするPDFファイルのパス。
         """
-        st.write(f"📄 PDFファイルの読み込みを開始します: {pdf_file_path}")
-        docs = PyPDFLoader(file_path=pdf_file_path).load()
+        for path in pdf_file_paths:
+            docs = PyPDFLoader(file_path=path).load()
+            all_docs.extend(docs)
+            st.write(f"📄 PDFファイルの読み込みを開始します: {path}")
+        
         st.write(f"✅ PDFファイルの読み込み完了、文書数: {len(docs)}")
 
         st.write("✂️ テキスト分割を開始します。")
