@@ -20,44 +20,42 @@
 └── setting.py               # 環境変数の読み込み（.env）<br>
 
 - セットアップ方法（Installation）
-Python 3.11 以上をインストール
+-Python 3.11 以上をインストール 
 
 ### 2. 仮想環境の作成（任意）
-python -m venv venv
-source venv/bin/activate # macOS/Linux
-venv\Scripts\activate # Windows
+-python -m venv venv <br>
+-source venv/bin/activate # macOS/Linux
+-venv\Scripts\activate # Windows 
 
 
 
-bash
-コピーする
-編集する
-python -m venv venv
-source venv/bin/activate  # macOS/Linux
-venv\Scripts\activate     # Windows
-依存ライブラリのインストール
+-```bash 
+-python -m venv venv 
+-source venv/bin/activate  # macOS/Linux
+-venv\Scripts\activate     # Windows
+-依存ライブラリのインストール  
 
 
 ### 3. 依存パッケージのインストール
-pip install -r requirements.txt
+-pip install -r requirements.txt
 
 ### 4. .env ファイルの作成
-ルートディレクトリに `.env` ファイルを作成し、以下の内容を記載してください。
-NEO4J_URI=bolt://localhost:????
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_password
+-ルートディレクトリに `.env` ファイルを作成し、以下の内容を記載してください。 (重要）
+-NEO4J_URI=bolt://localhost:????
+-NEO4J_USER=neo4j
+-NEO4J_PASSWORD=your_password
 
-GOOGLE_API_KEY=your_google_genai_key
-SERPAPI_API_KEY=your_serpapi_key
+-GOOGLE_API_KEY=your_google_genai_key
+-SERPAPI_API_KEY=your_serpapi_key
 
 ## 実行方法
-```bash
-streamlit run app.py
+-```bash
+-streamlit run app.py
 
 
 ## Docker での実行（オプション）
-docker build -t pdf-chatbot -f Dockerfile.txt .
-docker run -p 8501:8501 --env-file .env pdf-chatbot
+-docker build -t pdf-chatbot -f Dockerfile.txt .
+-docker run -p 8501:8501 --env-file .env pdf-chatbot
 
 
 ---
@@ -78,12 +76,12 @@ docker run -p 8501:8501 --env-file .env pdf-chatbot
 
 ## キャラクターの種類
 
-| キャラクター名 | 説明 |
-|----------------|------|
-| 丁寧           | 礼儀正しく丁寧な話し方 |
-| ツンデレ       | ツンデレ風のぶっきらぼうな口調 |
-| 猫ちゃん       | 「にゃん」を語尾につけた猫風の話し方 |
-| メイド         | 「ご主人様」と呼ぶメイド風の話し方 |
+-| キャラクター名 | 説明 |
+-|----------------|------|
+-| 丁寧           | 礼儀正しく丁寧な話し方 |
+-| ツンデレ       | ツンデレ風のぶっきらぼうな口調 |
+-| 猫ちゃん       | 「にゃん」を語尾につけた猫風の話し方 |
+-| メイド         | 「ご主人様」と呼ぶメイド風の話し方 |
 
 ---
 
