@@ -19,7 +19,7 @@
 ├── requirements.txt         # Python パッケージ一覧 <br>
 └── setting.py               # 環境変数の読み込み（.env）<br>
 
-- セットアップ方法（Installation）
+- セットアップ方法（Installation）<br>
 -Python 3.11 以上をインストール 
 
 ### 2. 仮想環境の作成（任意）
@@ -31,7 +31,7 @@
 
 -```bash 
 -python -m venv venv <br>
--source venv/bin/activate  # macOS/Linux　＜br>
+-source venv/bin/activate  # macOS/Linux　<br>
 -venv\Scripts\activate     # Windows <br>
 -依存ライブラリのインストール  
 
