@@ -1,3 +1,4 @@
+＃成功した時の画面（neo4j db,gemini api, serp api 必要）
 https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 ## 概要
 
