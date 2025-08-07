@@ -11,13 +11,13 @@
 ## プロジェクト構成
 .
 ├── .gitignore　<br>
-├── Dockerfile.txt           # Docker 環境設定ファイル
-├── README.md                # プロジェクト説明書
-├── app.py                   # Streamlit ウェブUI
-├── chunk.py                 # PDFのテキスト・画像抽出処理
-├── rag.py                   # PDF QA・検索処理（RAG）
-├── requirements.txt         # Python パッケージ一覧
-└── setting.py               # 環境変数の読み込み（.env）
+├── Dockerfile.txt           # Docker 環境設定ファイル <br>
+├── README.md                # プロジェクト説明書 <br>
+├── app.py                   # Streamlit ウェブUI <br>
+├── chunk.py                 # PDFのテキスト・画像抽出処理 <br>
+├── rag.py                   # PDF QA・検索処理（RAG） <br>
+├── requirements.txt         # Python パッケージ一覧 <br>
+└── setting.py               # 環境変数の読み込み（.env）<br>
 
 - セットアップ方法（Installation）
 Python 3.11 以上をインストール
