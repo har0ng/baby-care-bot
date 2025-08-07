@@ -31,18 +31,34 @@ st.session_state.selected_character = selected_character
 # 탭 UI
 tab1, tab2 = st.tabs(["PDFチャット", "ウェブ検索"])
 
-# 🔹 PDF 챗봇 탭
+# 🔹 PDF 챗봇 탭  この部分を修正すれば福岡のファイルをUploadできる。
 with tab1:
     st.header("📄 PDFチャット")
-    uploaded_file = st.file_uploader("PDFファイルをアップロードしてください。", type="pdf")
-    if uploaded_file:
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            tf.write(uploaded_file.getbuffer())
-            file_path = tf.name
 
-        st.session_state["chat_assistant"].ingest(file_path)
-        os.remove(file_path)
-        st.success("✅ PDFの処理が完了しました！質問してください！")
+    uploaded_files = st.file_uploader(
+        "PDFファイルをアップロードしてください。", 
+        type="pdf",  
+        accept_multiple_files=True // 
+    )
+
+
+    if uploaded_files:
+        file_paths = []　#　配列追加。
+
+        for uploaded_file in uploaded_files:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tf:
+                tf.write(uploaded_file.getbuffer())
+                file_paths.append(tf.name)
+
+        st.session_state["chat_assistant"].ingest(file_paths)
+
+        for path in file_paths:
+            os.remove(path)
+
+        st.success("✅ 全てのPDFの処理が完了しました！質問してください！")
+
+   #　この上まで修正完了。
+
 
     # 채팅 인터페이스
     for message in st.session_state.messages:

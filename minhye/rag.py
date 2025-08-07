@@ -37,27 +37,23 @@ class ChatPDF:
     chain = None
 
     def __init__(self):
-        # 비동기 루프 생성 (Streamlit 호환용)
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
-        # 임베딩 모델 설정
         self.embeddings_model = GoogleGenerativeAIEmbeddings(
             model="models/embedding-001",
             task_type="RETRIEVAL_DOCUMENT",
             api_key=GOOGLE_API_KEY
         )
 
-        # 텍스트 분할기 설정 (chunk_size=1024, overlap=100)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1024,
             chunk_overlap=100
         )
 
-        # Gemini 모델 설정
         self.model = genai.GenerativeModel("gemini-2.5-flash")
 
     def _get_prompt_for_character(self, character: str) -> PromptTemplate:
@@ -92,17 +88,19 @@ class ChatPDF:
 回答: [/INST]
 """
         else:
-            # 기본은 丁寧
             return self._get_prompt_for_character("丁寧")
 
         return PromptTemplate.from_template(template)
 
-    def ingest(self, pdf_file_path: str):
-        """
-        PDF 파일을 읽어서 텍스트를 분할한 뒤 Neo4j 벡터스토어에 업로드합니다.
-        """
-        docs = PyPDFLoader(file_path=pdf_file_path).load()
-        chunks = self.text_splitter.split_documents(docs)
+    # list[str]に変更。
+    def ingest(self, pdf_file_paths: list[str]):
+        all_docs = []
+
+        for path in pdf_file_paths:
+            docs = PyPDFLoader(file_path=path).load()
+            all_docs.extend(docs)
+
+        chunks = self.text_splitter.split_documents(all_docs)
         chunks = filter_complex_metadata(chunks)
 
         self.vector_store = Neo4jVector.from_documents(
@@ -115,13 +113,9 @@ class ChatPDF:
             node_label="Document",
             embedding_node_property="embedding"
         )
-
         self.retriever = self.vector_store.as_retriever(
             search_type="similarity_score_threshold",
-            search_kwargs={
-                "k": 3,
-                "score_threshold": 0.5,
-            },
+            search_kwargs={"k": 3, "score_threshold": 0.5},
         )
 
         character = st.session_state.get("selected_character", "丁寧")
@@ -134,6 +128,8 @@ class ChatPDF:
             | StrOutputParser()
         )
 
+    #　この上まで変更しました。
+
     def _gemini_invoke(self, inputs: dict) -> str:
         prompt_str = inputs.to_string()
         response = self.model.generate_content(prompt_str.strip())
@@ -143,9 +139,9 @@ class ChatPDF:
         if not self.chain:
             return "먼저 PDF를 업로드해주세요!"
 
-        # 캐릭터 변경을 반영하기 위해 프롬프트 재설정
         character = st.session_state.get("selected_character", "丁寧")
         self.prompt_template = self._get_prompt_for_character(character)
+
         self.chain = (
             {"context": self.retriever, "question": RunnablePassthrough()}
             | self.prompt_template
