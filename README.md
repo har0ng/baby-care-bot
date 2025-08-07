@@ -1,4 +1,5 @@
-＃成功した時の画面（neo4j db,gemini api, serp api 必要）
+＃成功した時の画面（neo4j db,gemini api, serp api 必要）<br>
+-プロジェクトの管理者がserverを開いた時だけ見るのが可能です。<br>
 https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 ## 概要
 
