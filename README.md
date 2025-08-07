@@ -10,7 +10,7 @@
 
 ## プロジェクト構成
 .
-├── .gitignore
+├── .gitignore　<br>
 ├── Dockerfile.txt           # Docker 環境設定ファイル
 ├── README.md                # プロジェクト説明書
 ├── app.py                   # Streamlit ウェブUI
