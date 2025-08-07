@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import tempfile
 from rag import ChatPDF # rag.py에서 ChatPDF 클래스를 가져옵니다.
-from serpapi import GoogleSearch # 웹 검색을 위한 SerpApi를 가져옵니다.
+from serpapi import GoogleSearch   # 웹 검색을 위한 SerpApi를 가져옵니다.
 from dotenv import load_dotenv
 
 # 환경 변수를 로드합니다.
@@ -157,4 +157,4 @@ with tab2:
             st.markdown("---")
 
         else:
-            st.warning("検索結果が見つからなかったんだから…")
+            st.warning("考え中...")

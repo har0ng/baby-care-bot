@@ -12,8 +12,6 @@ from langchain.vectorstores.utils import filter_complex_metadata
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
-from serpapi import GoogleSearch # SerpApi를 사용하여 웹 검색을 수행합니다.
-import json
 import asyncio # asyncio 모듈을 임포트합니다.
 
 # .env 파일에서 환경 변수를 로드합니다.
@@ -41,27 +39,6 @@ except Exception as e:
 # Google Generative AI를 구성합니다.
 # Google Generative AIを設定します。
 genai.configure(api_key=GOOGLE_API_KEY)
-
-# 웹 검색 기능을 수행하는 함수를 정의합니다.
-# ウェブ検索機能を実行する関数を定義します。
-def custom_google_search(query: str):
-    """
-    SerpApi를 사용하여 웹 검색을 수행합니다.
-    SerpApiを使用してウェブ検索を実行します。
-    """
-    try:
-        params = {
-            "q": query,
-            "api_key": SERPAPI_API_KEY,
-            "hl": "ja",  # 일본어 검색
-        }
-        search_client = GoogleSearch(params)
-        results = search_client.get_dict()
-        return results.get("organic_results", [])
-    except Exception as e:
-        st.error(f"ウェブ検索中にエラーが発生しました：{e}")
-        return None
-
 
 
 class ChatPDF:
