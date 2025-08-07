@@ -14,7 +14,7 @@ Streamlitを使い、簡単かつ迅速にインタラクティブなチャッ�
 ## インストールと実行方法
 
 ### 1. 必要環境  
-- Python 3.11  
+- Python 3.11  以上
 - Docker（任意）  
 - Neo4jデータベース
 - gemini API key
