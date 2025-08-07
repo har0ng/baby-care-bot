@@ -21,7 +21,7 @@ def custom_google_search(query: str):
     """
     try:
         params = {
-            "q": query + "の小児科の住所と電話番号",
+            "q": query + "の小児科の住所と電話番号、営業時間、ホームページ",
             "api_key": SERPAPI_API_KEY,
             "hl": "ja",  # 일본어 검색
         }
@@ -111,7 +111,7 @@ with tab1:
 
 from langchain.prompts import PromptTemplate
 import google.generativeai as genai
-
+import base64
 # Gemini 모델 초기화 (API 키 필요)
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 gemini_model = genai.GenerativeModel("gemini-2.5-flash")
@@ -120,8 +120,9 @@ web_prompt_template = PromptTemplate.from_template(
     """
     <s> [INST] あなたは情報収集アシスタントです。
     以下のウェブ検索結果を参考にして病院別に整理してください。
-    必ず含めないといけない要素は病院の住所、電話番号、名前、科、簡単な情報、出来ればホームページリンクや建物の画像をを含めてください。
-    {character}、html形式にインラインcssで喋り方のコンセプトに合わせて作って簡潔に3文以内で答えて。
+    必ず含めないといけない要素は病院の住所、電話番号、名前、科、簡単な情報、出来ればホームページリンクや営業時間を含めてください。
+    {character}、コンセプトに似合う絵文字を使ってhtml形式にインラインcssで喋り方のコンセプトに合わせて作って簡潔に3文以上で答えてください。
+    もし小児科と関係ない結果が出てきたら地名の入力を頼んでください。
     [/INST] </s>
     ウェブ検索結果: {context}
     """
@@ -147,14 +148,33 @@ with tab2:
     search_button = st.button("検索")
 
     if search_button and web_search_query:
+        st.session_state["loading"] = True
         st.write(f"ウェブで「{web_search_query}」の近くの病院を検索しています...")
+        if st.session_state.get("loading"):
+                char = "images/spinner.gif"
+                if st.session_state["selected_character"] == "ツンデレ":
+                    char = "images/Tsundere.gif"
+                elif st.session_state["selected_character"] == "猫ちゃん":
+                    char = "images/cat.gif"
+                elif st.session_state["selected_character"] == "メイド":
+                    char = "images/maid.gif"
+                with open(char, "rb") as f:
+                    data = f.read()
+                    b64 = base64.b64encode(data).decode("utf-8")
+
+                st.markdown(
+                    f"""
+                    <img src="data:image/gif;base64,{b64}" width="400">
+                    """,
+                    unsafe_allow_html=True
+                )
 
         search_results = custom_google_search(web_search_query)
-
+        st.session_state["loading"] = False
         if search_results:
             st.subheader("検索結果")
             st.html(ask_gemini_about_web_results(search_results))
             st.markdown("---")
 
         else:
-            st.warning("検索結果が見つからなかったんだから…")
+            st.warning("検索結果がありません。地名の確認をお願いします。")

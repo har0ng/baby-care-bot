@@ -1,73 +1,111 @@
-# ChatPDF
+＃成功した時の画面（neo4j db,gemini api, serp api 必要）<br>
+-プロジェクトの管理者がserverを開いた時だけ見るのが可能です。<br>
+https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
+## 概要
 
-## プロジェクト概要  
-ChatPDFはPDF文書をアップロードして内容を解析し、自然言語の質問にPDFの内容をもとに回答するウェブアプリケーションです。  
-Streamlitを使い、簡単かつ迅速にインタラクティブなチャットボットUIを提供します。
+このプロジェクトに含まれる主な機能は以下の通りです：
 
-## 主な機能  
-- PDFファイルアップロード対応（.pdf形式）  
-- アップロードされたPDFのテキストや画像を分割・処理  
-- 文書内容をベクトル化しNeo4jのベクトルストアに保存  
-- 自然言語の質問に対してPDFの内容を参照し回答  
-- 高度な非同期処理とセッション状態の維持  
+- PDFファイルをアップロードして、内容に基づいた質問応答
+- 地名を入力して、周辺の小児科情報をSerpApi + Geminiで検索・要約
+- キャラクター別の口調（丁寧、ツンデレ、猫ちゃん、メイド）による自然な回答
+- LangChainとNeo4jによるベクトル検索ベースのドキュメントQAシステム
+- Streamlitによる直感的なWebインターフェース
 
-## インストールと実行方法
+## プロジェクト構成
+.
+├── .gitignore　<br>
+├── Dockerfile.txt           # Docker 環境設定ファイル <br>
+├── README.md                # プロジェクト説明書 <br>
+├── app.py                   # Streamlit ウェブUI <br>
+├── chunk.py                 # PDFのテキスト・画像抽出処理 <br>
+├── rag.py                   # PDF QA・検索処理（RAG） <br>
+├── requirements.txt         # Python パッケージ一覧 <br>
+└── setting.py               # 環境変数の読み込み（.env）<br>
 
-### 1. 必要環境  
-- Python 3.11  以上
-- Docker（任意）  
-- Neo4jデータベース
-- gemini API key
-- neo4j
+- セットアップ方法（Installation）<br>
+-Python 3.11 以上をインストール 
 
-### 2. リポジトリのクローンと依存パッケージのインストール  
-```bash
-git clone [リポジトリURL]
-cd [プロジェクトフォルダ]
-pip install -r requirements.txt
+### 2. 仮想環境の作成（任意）
+-python -m venv venv <br>
+-source venv/bin/activate # macOS/Linux <br>
+-venv\Scripts\activate # Windows <br>
 
-###　3.環境変数の設定
--プロジェクトルートに.envファイルを作成し、以下の内容を入力してください。
-GOOGLE_API_KEY=your_google_api_key_here
-NEO4J_URI=bolt://your_neo4j_host:????
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_password
 
-### 4. アプリケーションの実行
-```bash
-streamlit run app.py
 
--Dockerコンテナで実行する場合は以下を実行してください。
+-```bash 
+-python -m venv venv <br>
+-source venv/bin/activate  # macOS/Linux　<br>
+-venv\Scripts\activate     # Windows <br>
+-依存ライブラリのインストール  
 
-```bash
-docker build -t chatpdf-app .
-docker run -p 8501:8501 --env-file .env chatpdf-app
 
-## 使い方
-Web UIからPDF文書をアップロードします。
+### 3. 依存パッケージのインストール
+-pip install -r requirements.txt
 
-PDFのベクトル化とNeo4jへの保存処理が行われます。
+### 4. .env ファイルの作成
+-ルートディレクトリに `.env` ファイルを作成し、以下の内容を記載してください。 (重要） <br>
+-NEO4J_URI=bolt://localhost:???? <br>
+-NEO4J_USER=neo4j <br>
+-NEO4J_PASSWORD=your_password <br>
 
-テキスト入力欄に質問を入力すると、gemeniベースのチャットボットがPDF内容に沿った回答をします。
+-GOOGLE_API_KEY=your_google_genai_key <br>
+-SERPAPI_API_KEY=your_serpapi_key <br>
 
-必要に応じて「Clear」ボタンなどで状態をリセットできます。
+## 実行方法
+-```bash <br>
+-streamlit run app.py <br>
+ 
 
-## 主要コード説明
-app.py（Streamlitウェブアプリ）
-UIの構築とセッション状態の管理
+## Docker での実行（オプション）
+-```bash <br>
+-docker build -t pdf-chatbot -f Dockerfile.txt . <br>
+-docker run -p 8501:8501 --env-file .env pdf-chatbot <br>
 
-ファイルアップロード時にChatPDFクラスのingest()を呼び出し
 
-ユーザーの質問を処理し回答を表示
+---
 
-chatpdf.py（コアロジック）
-PDFの読み込みとテキスト分割（PyPDFLoader、RecursiveCharacterTextSplitter使用）
+## 主な機能
 
-埋め込み生成（GoogleGenerativeAIEmbeddings使用）
+### PDFチャット
 
-Neo4jベクトルストアへの埋め込み保存・検索機能の実装
+- アップロードされたPDFをNeo4jに格納し、Geminiで質問に回答します
+- 回答はMarkdown形式で整形され、最大20文以内に要約されます
 
-Ollamaチャットボットモデルで質問・回答処理
+### ウェブ検索と要約
 
-settings.py（環境変数の読み込み）
-.envファイルからNeo4j接続情報をロード
+- 入力された地名に基づいてSerpApiで検索を行い、周辺の小児科を収集します
+- Geminiが検索結果をHTML形式で要約し、キャラクターに応じたスタイルで返答します
+
+---
+
+## キャラクターの種類
+
+-| キャラクター名 | 説明 |
+-|----------------|------|
+-| 丁寧           | 礼儀正しく丁寧な話し方 |
+-| ツンデレ       | ツンデレ風のぶっきらぼうな口調 |
+-| 猫ちゃん       | 「にゃん」を語尾につけた猫風の話し方 |
+-| メイド         | 「ご主人様」と呼ぶメイド風の話し方 |
+
+---
+
+## 使用技術
+
+- LangChain
+- Google Generative AI (Gemini)
+- Neo4j Vector Database
+- Streamlit
+- SerpApi
+- Unstructured（PDF解析）
+- Docker
+
+---
+
+## 注意事項
+
+- `.env`ファイルが存在しないと実行できません(重要)
+- Google Generative AI と SerpApi のAPIキーを取得しておく必要があります
+- Neo4jは別途ローカルもしくはクラウド環境で動作している必要があります
+
+---
+Neo4jは別途ローカルまたはクラウド上で稼働している必要があります
