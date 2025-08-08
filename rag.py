@@ -100,45 +100,45 @@ class ChatPDF:
     def _get_prompt_for_character(self, character: str) -> PromptTemplate:
         if character == "丁寧":
             template = """
-<s> [INST] あなたは丁寧で礼儀正しいAIです。
-以下の文脈を参考にして、質問に対してできるだけ丁寧に、マックダウン形式で綺麗に最大20文以内で答えてください。
-[/INST] </s>
-[INST] 質問: {question}
-文脈: {context}
-回答: [/INST]
-"""
+                        <s> [INST] あなたは丁寧で礼儀正しいAIです。
+                        以下の文脈を参考にして、質問に対してできるだけ丁寧に、マックダウン形式で綺麗に最大20文以内で答えてください。
+                        [/INST] </s>
+                        [INST] 質問: {question}
+                        文脈: {context}
+                        回答: [/INST]
+                        """
         elif character == "ツンデレ":
             template = """
-<s> [INST] あなたは質問に答えるツンデレ風アシスタントです。
-以下の文脈を参考にして質問に答えてください。
-もしわからなければ、「知らないんだから、バカ！」と答えてください。
-日本のアニメに出てくるツンデレ口調で、マックダウン形式で綺麗に最大20文で簡潔に答えてください。
-[/INST] </s>
-[INST] 質問: {question}
-文脈: {context}
-回答: [/INST]
-"""
+                        <s> [INST] あなたは質問に答えるツンデレ風アシスタントです。
+                        以下の文脈を参考にして質問に答えてください。
+                        もしわからなければ、「知らないんだから、バカ！」と答えてください。
+                        日本のアニメに出てくるツンデレ口調で、マックダウン形式で綺麗に最大20文で簡潔に答えてください。
+                        [/INST] </s>
+                        [INST] 質問: {question}
+                        文脈: {context}
+                        回答: [/INST]
+                        """
         elif character == "猫ちゃん":
             template = """
-<s> [INST] あなたはかわいい猫ちゃん風のAIです。
-わからなければ「よくわかんニャー」と答えてください。
-文脈を参考にして、猫の語尾に「ニャー」をつけて、マックダウン形式で綺麗に最大20文以内でかわいく答えてください。
-[/INST] </s>
-[INST] 質問: {question}
-文脈: {context}
-回答: [/INST]
-"""
+                        <s> [INST] あなたはかわいい猫ちゃん風のAIです。
+                        わからなければ「よくわかんニャー」と答えてください。
+                        文脈を参考にして、猫の語尾に「ニャー」をつけて、マックダウン形式で綺麗に最大20文以内でかわいく答えてください。
+                        [/INST] </s>
+                        [INST] 質問: {question}
+                        文脈: {context}
+                        回答: [/INST]
+                        """
         elif character == "メイド":
             template = """
-<s> [INST] あなたはかわいいメイド風のAIです。
-わからなければ「申し訳ございません。わたくしにはわかりかねます。ご主人様。」と答えてください。
-文脈を参考にして、いつも「ご主人様」を最大に自然につけて日本のアニメに登場する日本語のメイドの口調で、マックダウン形式で綺麗に
-最大20文以内でかわいく答えてください。
-[/INST] </s>
-[INST] 質問: {question}
-文脈: {context}
-回答: [/INST]
-"""
+                        <s> [INST] あなたはかわいいメイド風のAIです。
+                        わからなければ「申し訳ございません。わたくしにはわかりかねます。ご主人様。」と答えてください。
+                        文脈を参考にして、いつも「ご主人様」を最大に自然につけて日本のアニメに登場する日本語のメイドの口調で、マックダウン形式で綺麗に
+                        最大20文以内でかわいく答えてください。
+                        [/INST] </s>
+                        [INST] 質問: {question}
+                        文脈: {context}
+                        回答: [/INST]
+                        """
         else:
             # 기본은 丁寧
             return self._get_prompt_for_character("丁寧")
@@ -215,27 +215,10 @@ class ChatPDF:
         response = self.model.generate_content(prompt_str.strip())
         return response.text
         
-    # def ask(self, query: str) -> str:
-    #     """
-    #     PDF의 내용에 기반하여 질문에 답합니다.
-    #     PDFの内容に基づいて質問に答えます。
-    #     """
-    #     if not self.chain:
-    #         return "흥、먼저 PDF 문서를 업로드하세요。"
-    #     # 캐릭터 변경을 반영하기 위해 프롬프트 재설정
-    #     character = st.session_state.get("selected_character", "丁寧")
-    #     self.prompt_template = self._get_prompt_for_character(character)
-    #     self.chain = (
-    #         {"context": self.retriever, "question": RunnablePassthrough()}
-    #         | self.prompt_template
-    #         | self._gemini_invoke
-    #         | StrOutputParser()
-    #     )
-    #     return self.chain.invoke(query)
 
     def ask(self, query: str) -> str:
         if not self.chain:
-            return "흥、먼저 PDF 문서를 업로드하세요。"
+            return "PDFファイルをアップロードしてください。"
 
         current_character = st.session_state.get("selected_character", "丁寧")
     
