@@ -84,7 +84,7 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 ### ウェブ検索と要約
 
 - 入力された地名に基づいてSerpApiで検索を行い、周辺の小児科を収集します
-- Geminiが検索結果をHTML形式で要約し、キャラクターに応じたスタイルで返答します
+- Geminiが検索結果をHTML形式で要約し、キャラクターに応じたスタイルで回答します
 
 ---
 
