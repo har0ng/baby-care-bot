@@ -103,7 +103,7 @@ with tab1:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        
+
         with st.chat_message("assistant"):
             response = st.session_state["chat_assistant"].ask(prompt)
             st.markdown(response)
@@ -140,7 +140,7 @@ def ask_gemini_about_web_results(results):
     prompt_text = web_prompt_template.format(context=context, character=get_character(character))
     response = gemini_model.generate_content(prompt_text.strip())
     return response.text
-
+loading_placeholder = st.empty()
 with tab2:
     st.header("近い小児科の検索")
 
@@ -162,18 +162,21 @@ with tab2:
                     data = f.read()
                     b64 = base64.b64encode(data).decode("utf-8")
 
-                st.markdown(
+                loading_placeholder.markdown(
                     f"""
-                    <img src="data:image/gif;base64,{b64}" width="400">
+                    <div style="width: 100%; display: flex; justify-content: center;">
+                        <img src="data:image/gif;base64,{b64}" width="300">
+                    <div/>
                     """,
                     unsafe_allow_html=True
                 )
 
         search_results = custom_google_search(web_search_query)
-        st.session_state["loading"] = False
         if search_results:
             st.subheader("検索結果")
             st.html(ask_gemini_about_web_results(search_results))
+            st.session_state["loading"] = False
+            loading_placeholder.empty() 
             st.markdown("---")
 
         else:
