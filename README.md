@@ -67,7 +67,7 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
  
 
 ## Docker での実行（オプション）
--*Dockerは共有をするために必要なもので必ず実装する必要はありません。*
+-*Dockerは共有をするために必要なもので必ず実装する必要はありません。*　<br>
 -```bash <br>
 -docker build -t pdf-chatbot -f Dockerfile.txt . <br>
 -docker run -p 8501:8501 --env-file .env pdf-chatbot <br>
