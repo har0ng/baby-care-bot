@@ -12,7 +12,7 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 - Streamlitによる直感的なWebインターフェース
 
 ## プロジェクト構成
-.
+
 ├── .gitignore　<br>
 ├── Dockerfile.txt           # Docker 環境設定ファイル <br>
 ├── README.md                # プロジェクト説明書 <br>
