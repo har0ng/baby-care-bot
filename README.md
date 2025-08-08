@@ -15,7 +15,7 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 
 - LangChain
 - Google Generative AI (Gemini)
-- Neo4j Vector Database
+- Neo4j Vector Database　＃cloudでする方はwebで作ってください。
 - Streamlit
 - SerpApi
 - Unstructured（PDF解析）
