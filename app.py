@@ -149,7 +149,6 @@ with tab2:
 
     if search_button and web_search_query:
         st.session_state["loading"] = True
-        st.write(f"ウェブで「{web_search_query}」の近くの病院を検索しています...")
         if st.session_state.get("loading"):
                 char = "images/spinner.gif"
                 if st.session_state["selected_character"] == "ツンデレ":
@@ -164,6 +163,7 @@ with tab2:
 
                 loading_placeholder.markdown(
                     f"""
+                    <h3>ウェブで「{web_search_query}」の近くの病院を検索しています...<h3/>
                     <div style="width: 100%; display: flex; justify-content: center;">
                         <img src="data:image/gif;base64,{b64}" width="300">
                     <div/>
