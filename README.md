@@ -11,6 +11,16 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 - LangChainとNeo4jによるベクトル検索ベースのドキュメントQAシステム
 - Streamlitによる直感的なWebインターフェース
 
+## 使用技術
+
+- LangChain
+- Google Generative AI (Gemini)
+- Neo4j Vector Database
+- Streamlit
+- SerpApi
+- Unstructured（PDF解析）
+- Docker
+
 ## プロジェクト構成
 
 ├── .gitignore　<br>
@@ -86,18 +96,6 @@ https://bug-free-carnival-wrvq6pv6q6rc54p7-8501.app.github.dev/
 -| ツンデレ       | ツンデレ風のぶっきらぼうな口調 |
 -| 猫ちゃん       | 「にゃん」を語尾につけた猫風の話し方 |
 -| メイド         | 「ご主人様」と呼ぶメイド風の話し方 |
-
----
-
-## 使用技術
-
-- LangChain
-- Google Generative AI (Gemini)
-- Neo4j Vector Database
-- Streamlit
-- SerpApi
-- Unstructured（PDF解析）
-- Docker
 
 ---
 
